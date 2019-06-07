@@ -71,7 +71,7 @@ for i in range(item_count+1):
 	else:
 		i_read_list.append(i_read)
 
-for s in click_f:
+for s in trust_f:
 	uid = s[0]
 	fid = s[1]
 	if uid > user_count or fid > user_count:

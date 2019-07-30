@@ -15,7 +15,7 @@ To train the model, you can run
     
 and you will get similar results after about 20 epoches. 
 
-The data_preparation.py is to preprocess the dataset and outputs two .pkl files in /data. The input.py generates mini-batch samples.
+The build_dataset.py is to preprocess the dataset and outputs two .pkl files in /data. The input.py generates mini-batch samples.
 The eval.py contains the calculation for evaluation metrics. The model.py implements the network model proposed in our paper.
 
 If you use this code as part of any published research, please cite the following paper:

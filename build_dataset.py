@@ -5,9 +5,9 @@ import pandas as pd
 
 random.seed(1234)
 
-workdir = '/home/myronwu/epinions' # change to your workdir
-click_f = np.loadtxt(workdir+'/ratings_data.txt', dtype = np.int32)
-trust_f = np.loadtxt(workdir+'/trust_data.txt', dtype = np.int32)
+workdir = '/home/myronwu/DANSER-WWW-19' # change to your workdir
+click_f = np.loadtxt(workdir+'/data/ratings_data.txt', dtype = np.int32)
+trust_f = np.loadtxt(workdir+'/data/trust_data.txt', dtype = np.int32)
 
 click_list = []
 trust_list = []
@@ -40,7 +40,7 @@ train_set = pos_list[:int(0.8*len(pos_list))]
 test_set = pos_list[int(0.8*len(pos_list)):len(pos_list)]
 print(len(train_set))
 
-with open(workdir+'/dataset.pkl', 'wb') as f:
+with open(workdir+'/data/dataset.pkl', 'wb') as f:
 	pickle.dump(train_set, f, pickle.HIGHEST_PROTOCOL)
 	pickle.dump(test_set, f, pickle.HIGHEST_PROTOCOL)
 
@@ -128,7 +128,7 @@ for i in range(item_count+1):
 			if_read_f.append(i_read_list[f])
 		if_read_list.append(if_read_f)
 	
-with open(workdir+'/data.pkl', 'wb') as f:
+with open(workdir+'/data/list.pkl', 'wb') as f:
 	pickle.dump(u_friend_list, f, pickle.HIGHEST_PROTOCOL)
 	pickle.dump(u_read_list, f, pickle.HIGHEST_PROTOCOL)
 	pickle.dump(uf_read_list, f, pickle.HIGHEST_PROTOCOL)

@@ -24,7 +24,7 @@ trunc_len = 10
 train_batch_size = 64
 test_batch_size = 64
 
-workdir = '/home/myronwu/code/DANSER-WWW-19' # change to your workdir
+workdir = '/home/myronwu/DANSER-WWW-19' # change to your workdir
 with open(workdir+'/data/dataset.pkl', 'rb') as f:
 	train_set = pickle.load(f)
 	test_set = pickle.load(f)

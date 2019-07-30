@@ -32,20 +32,20 @@ class Model(object):
 
 		#--------------embedding layer-------------------
         
-		hidden_units_u = 10
-		hidden_units_i = 10
+		hidden_units_u = 10 # user embedding size
+		hidden_units_i = 10 # item embedding size
 
 		user_emb_w = tf.get_variable("norm_user_emb_w", [user_count+1, hidden_units_u], initializer = None)
 		item_emb_w = tf.get_variable("norm_item_emb_w", [item_count+1, hidden_units_i], initializer = None)
 		item_b = tf.get_variable("norm_item_b", [item_count+1],
                              initializer=tf.constant_initializer(0.0))
 
-		#--------------Embedding Layer-------------------
-		#self embedding
+		# embedding for user and item
 		uid_emb = tf.nn.embedding_lookup(user_emb_w, self.user)
 		iid_emb = tf.nn.embedding_lookup(item_emb_w, self.item)
 		i_b = tf.gather(item_b, self.item)
 
+		# embedding for user's clicked items
 		ur_emb = tf.nn.embedding_lookup(item_emb_w, self.u_read) # [B, R, H]
 		key_masks = tf.sequence_mask(self.u_read_l, tf.shape(ur_emb)[1])   # [B, R]
 		key_masks = tf.expand_dims(key_masks, axis = 2) # [B, R, 1]
@@ -54,6 +54,7 @@ class Model(object):
 		paddings = tf.zeros_like(ur_emb) # [B, R, H]
 		ur_emb = tf.where(key_masks, ur_emb, paddings)  # [B, R, H]
 
+		# embedding for item's clicking users
 		ir_emb = tf.nn.embedding_lookup(user_emb_w, self.i_read) # [B, R, H]
 		key_masks = tf.sequence_mask(self.i_read_l, tf.shape(ir_emb)[1])   # [B, R]
 		key_masks = tf.expand_dims(key_masks, axis = 2) # [B, R, 1]
@@ -61,8 +62,8 @@ class Model(object):
 		key_masks = tf.reshape(key_masks, [-1, tf.shape(ir_emb)[1], tf.shape(ir_emb)[2]]) # [B, R, H]
 		paddings = tf.zeros_like(ir_emb) # [B, R, H]
 		ir_emb = tf.where(key_masks, ir_emb, paddings)  # [B, R, H]
-		
-		#friend embedding
+        
+		# embedding for user's friends
 		fuid_emb = tf.nn.embedding_lookup(user_emb_w, self.u_friend)
 		key_masks = tf.sequence_mask(self.u_friend_l, tf.shape(fuid_emb)[1])   # [B, F]
 		key_masks = tf.expand_dims(key_masks, axis = 2) # [B, F, 1]
@@ -70,6 +71,7 @@ class Model(object):
 		paddings = tf.zeros_like(fuid_emb) # [B, F, H]
 		fuid_emb = tf.where(key_masks, fuid_emb, paddings)  # [B, F, H]
 
+		# embedding for item's related items
 		fiid_emb = tf.nn.embedding_lookup(item_emb_w, self.i_friend)
 		key_masks = tf.sequence_mask(self.i_friend_l, tf.shape(fiid_emb)[1])   # [B, F]
 		key_masks = tf.expand_dims(key_masks, axis = 2) # [B, F, 1]
@@ -77,6 +79,7 @@ class Model(object):
 		paddings = tf.zeros_like(fiid_emb) # [B, F, H]
 		fiid_emb = tf.where(key_masks, fiid_emb, paddings)  # [B, F, H]
 
+		# embedding for user's friends' clicked items
 		ufr_emb = tf.nn.embedding_lookup(item_emb_w, self.uf_read)
 		key_masks = tf.sequence_mask(self.uf_read_l, tf.shape(ufr_emb)[2])   # [B, F, R]
 		key_masks = tf.expand_dims(key_masks, axis = 3) # [B, F, R, 1]
@@ -84,6 +87,7 @@ class Model(object):
 		paddings = tf.zeros_like(ufr_emb) # [B, F, R, H]
 		ufr_emb = tf.where(key_masks, ufr_emb, paddings)  # [B, F, R, H]
 
+		# embedding for item's related items' clicking users
 		ifr_emb = tf.nn.embedding_lookup(user_emb_w, self.if_read) # [B, F, R, H]
 		key_masks = tf.sequence_mask(self.if_read_l, tf.shape(ifr_emb)[2])   # [B, F, R]
 		key_masks = tf.expand_dims(key_masks, axis = 3) # [B, F, R, 1]
@@ -91,7 +95,7 @@ class Model(object):
 		paddings = tf.zeros_like(ifr_emb) # [B, F, R, H]
 		ifr_emb = tf.where(key_masks, ifr_emb, paddings)  # [B, F, R, H]
 		
-		#--------------Dual GCN/GAT Layer-------------------
+		#--------------social influence-------------------
 
 		uid_emb_exp1 = tf.tile(uid_emb, [1, tf.shape(fuid_emb)[1]+1])
 		uid_emb_exp1 = tf.reshape(uid_emb_exp1, [-1, tf.shape(fuid_emb)[1]+1, hidden_units_u]) # [B, F, H]
@@ -100,6 +104,7 @@ class Model(object):
 		uid_emb_ = tf.expand_dims(uid_emb, axis = 1)
 		iid_emb_ = tf.expand_dims(iid_emb, axis = 1)
 
+		# GAT1: graph convolution on user's embedding for user static preference
 		uid_in = tf.layers.dense(uid_emb_exp1, hidden_units_u, use_bias = False, name = 'trans_uid')
 		fuid_in = tf.layers.dense(tf.concat([uid_emb_, fuid_emb], axis = 1), hidden_units_u, use_bias = False, reuse=True, name = 'trans_uid')
 		din_gat_uid = tf.concat([uid_in, fuid_in], axis = -1)
@@ -110,7 +115,8 @@ class Model(object):
 		weights_uid = tf.tile(weights_uid, [1, 1, hidden_units_u]) # [B, F, H]
 		uid_gat = tf.reduce_sum(tf.multiply(weights_uid, fuid_in), axis = 1)
 		uid_gat = tf.reshape(uid_gat, [-1, hidden_units_u])
-
+		
+		# GAT2: graph convolution on item's embedding for item static attribute
 		iid_in = tf.layers.dense(iid_emb_exp1, hidden_units_i, use_bias = False, name = 'trans_iid')
 		fiid_in = tf.layers.dense(tf.concat([iid_emb_, fiid_emb], axis = 1), hidden_units_i, use_bias = False, reuse=True, name = 'trans_iid')
 		din_gat_iid = tf.concat([iid_in, fiid_in], axis = -1)
@@ -122,10 +128,13 @@ class Model(object):
 		iid_gat = tf.reduce_sum(tf.multiply(weights_iid, fiid_in), axis = 1)
 		iid_gat = tf.reshape(iid_gat, [-1, hidden_units_i])
 
+
 		uid_emb_exp2 = tf.tile(uid_emb, [1, tf.shape(ir_emb)[1]])
 		uid_emb_exp2 = tf.reshape(uid_emb_exp2, [-1, tf.shape(ir_emb)[1], hidden_units_u]) # [B, R, H]
 		iid_emb_exp2 = tf.tile(iid_emb, [1, tf.shape(ur_emb)[1]])
 		iid_emb_exp2 = tf.reshape(iid_emb_exp2, [-1, tf.shape(ur_emb)[1], hidden_units_i]) # [B, R, H]
+		ur_emb_ = tf.expand_dims(ur_emb, axis = 1) # [B, 1, R, H]
+		ir_emb_ = tf.expand_dims(ir_emb, axis = 1) # [B, 1, R, H]
 		uid_emb_exp3 = tf.expand_dims(uid_emb, axis = 1)
 		uid_emb_exp3 = tf.expand_dims(uid_emb_exp3, axis = 2) # [B, 1, 1, H]
 		uid_emb_exp3 = tf.tile(uid_emb_exp3, [1, tf.shape(ifr_emb)[1], tf.shape(ifr_emb)[2], 1]) # [B, F, R, H]
@@ -133,6 +142,7 @@ class Model(object):
 		iid_emb_exp3 = tf.expand_dims(iid_emb_exp3, axis = 2) # [B, 1, 1, H]
 		iid_emb_exp3 = tf.tile(iid_emb_exp3, [1, tf.shape(ufr_emb)[1], tf.shape(ufr_emb)[2], 1]) # [B, F, R, H]
 
+		# GAT3: graph convolution on user's clicked items for user dynamic preference
 		uint_in = tf.multiply(ur_emb, iid_emb_exp2) # [B, R, H]
 		uint_in = tf.reduce_max(uint_in, axis = 1) # [B, H]
 		uint_in = tf.layers.dense(uint_in, hidden_units_i, use_bias = False, name = 'trans_uint') # [B, H]
@@ -152,6 +162,7 @@ class Model(object):
 		uint_gat = tf.reduce_sum(tf.multiply(weights_uint, fint_in), axis = 1)
 		uint_gat = tf.reshape(uint_gat, [-1, hidden_units_i])
 
+		# GAT4: graph convolution on item's clicking users for item dynamic attribute
 		iinf_in = tf.multiply(ir_emb, uid_emb_exp2) # [B, R, H]
 		iinf_in = tf.reduce_max(iinf_in, axis = 1) # [B, H]
 		iinf_in = tf.layers.dense(iinf_in, hidden_units_u, use_bias = False, name = 'trans_iinf') # [B, H]
@@ -171,7 +182,7 @@ class Model(object):
 		iinf_gat = tf.reduce_sum(tf.multiply(weights_iinf, finf_in), axis = 1)
 		iinf_gat = tf.reshape(iinf_gat, [-1, hidden_units_u])
 
-		#--------------Pairwise Neural Interaction Layer---------------
+		#--------------DNN-based pairwise neural interaction layer---------------
 		
 		din_ui = tf.multiply(uid_gat, iid_gat)
 		if self.training is True: 
@@ -231,8 +242,7 @@ class Model(object):
 
 		d3 = tf.concat([d3_ui_, d3_uf_, d3_fi_, d3_ff_], axis = 2)
 
-		#--------------Policy-Based Fusion Layer---------------
-
+		#--------------policy-based fusion layer---------------
 		def policy(uid_emb, iid_emb, l_name = 'policy_1'):
 			din_policy = tf.concat([uid_emb, iid_emb, tf.multiply(uid_emb, iid_emb)], axis = -1)
 			policy = tf.layers.dense(din_policy, 4, activation=None, name=l_name)
@@ -259,16 +269,18 @@ class Model(object):
 		dmerge = tf.layers.dense(dmerge, 1, activation=None, use_bias = True, name='norm_merge', reuse=tf.AUTO_REUSE)
 		dmerge = tf.reshape(dmerge, [-1])
 
-		#--------------Output Layer---------------
+		#--------------output layer---------------
 		self.logits = i_b + dmerge
 		self.score = self.logits
 		i_b_exp = tf.reshape(i_b, [-1, 1])
 		logits_policy = tf.concat([i_b_exp + d4_ui, i_b_exp + d4_uf, i_b_exp + d4_fi, i_b_exp + d4_ff], axis = -1)
 		score_policy = logits_policy
 
+		# loss function
 		loss_emb_reg = tf.reduce_sum(tf.abs(i_b)) + tf.reduce_sum(tf.abs(iid_emb)) + tf.reduce_sum(tf.abs(uid_emb)) + tf.reduce_sum(tf.abs(fuid_emb)) 
 		self.loss = tf.reduce_mean(tf.square(self.score-self.label)) + self.lambda1*loss_emb_reg
 
+		# loss for each policy net
 		labels_exp = tf.reshape(self.label, [-1, 1])
 		self.loss_p1 = tf.reduce_mean(tf.reduce_sum(tf.multiply(-tf.log(policy1), -tf.square(score_policy-labels_exp)), axis = -1))
 		self.loss_p2 = tf.reduce_mean(tf.reduce_sum(tf.multiply(-tf.log(policy2), -tf.square(score_policy-labels_exp)), axis = -1))
@@ -282,12 +294,14 @@ class Model(object):
 		self.global_epoch_step_op = \
 		tf.assign(self.global_epoch_step, self.global_epoch_step+1)
 
+		# optimization for loss function
 		self.opt = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate)
 		trainable_params = tf.trainable_variables(scope = 'norm')
 		gradients = tf.gradients(self.loss, trainable_params)
 		clip_gradients, _ = tf.clip_by_global_norm(gradients, 5*self.learning_rate)
 		self.train_op = self.opt.apply_gradients(zip(clip_gradients, trainable_params), global_step=self.global_step)
 		
+		# optimization for each policy net
 		trainable_params1 = tf.trainable_variables(scope = 'policy_1')
 		gradients1 = tf.gradients(self.loss_p1, trainable_params1)
 		clip_gradients1, _ = tf.clip_by_global_norm(gradients1, 5*self.learning_rate)

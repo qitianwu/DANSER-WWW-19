@@ -11,7 +11,7 @@ import eval
 from input import DataInput
 from model import Model
 
-#os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+#os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 random.seed(1234)
 np.random.seed(1234)
 tf.set_random_seed(1234) 
@@ -24,11 +24,11 @@ trunc_len = 10
 train_batch_size = 64
 test_batch_size = 64
 
-workdir = '/home/myronwu'
-with open(workdir+'/dataset.pkl', 'rb') as f:
+workdir = '/home/myronwu/DANSER-WWW-19' # change to your workdir
+with open(workdir+'/data/dataset.pkl', 'rb') as f:
 	train_set = pickle.load(f)
 	test_set = pickle.load(f)
-with open(workdir+'/list.pkl', 'rb') as f:
+with open(workdir+'/data/list.pkl', 'rb') as f:
     u_friend_list = pickle.load(f)
     u_read_list = pickle.load(f)
     uf_read_list = pickle.load(f) 
@@ -44,8 +44,8 @@ def calc_metric(score_label_u):
 	ndcg = np.array([eval.ndcg_k(score_label_u, k) for k in range(1, 21)])
 	auc = eval.auc(score_label_u)
 	mae = eval.mae(score_label_u)
-	mrse = eval.mrse(score_label_u)
-	return precision, ndcg, auc, mae, mrse
+	rmse = eval.rmse(score_label_u)
+	return precision, ndcg, auc, mae, rmse
 
 def get_metric(score_label):
 	Precision = np.zeros(20)
@@ -72,8 +72,8 @@ def get_metric(score_label):
 	GPrecision = np.array([eval.precision_k(score_label_all, k*len(score_label_all)/100) for k in range(1, 21)])
 	GAUC = eval.auc(score_label_all)
 	MAE = eval.mae(score_label_all)
-	MRSE = eval.mrse(score_label_all)
-	return Precision / num, NDCG / num, AUC / num, GPrecision, GAUC, MAE, MRSE
+	RMSE = eval.mrse(score_label_all)
+	return Precision / num, NDCG / num, AUC / num, GPrecision, GAUC, MAE, RMSE
 		
 def _eval(sess, model):
 	loss_sum = 0.
@@ -89,9 +89,8 @@ def _eval(sess, model):
 			score_label.append([datainput[1][i], score_[i], datainput[2][i]])
 		loss_sum += loss
 		batch += 1
- 	#model.save(sess, 'save_path/ckpt')
-	Precision, NDCG, AUC, GPrecision, GAUC, MAE, MRSE = get_metric(score_label) 
-	return loss_sum/batch, Precision, NDCG, MAE, MRSE
+	Precision, NDCG, AUC, GPrecision, GAUC, MAE, RMSE = get_metric(score_label) 
+	return loss_sum/batch, Precision, NDCG, MAE, RMSE
 
 
 gpu_options = tf.GPUOptions(allow_growth=True)
@@ -102,9 +101,8 @@ with tf.Session() as sess:
 
 	sys.stdout.flush()
 	lr = learning_rate
-	start_time = time.time()
 	Train_loss_pre = 100
-	best_mae = 0.
+	best_mae = 1.0
 	for _ in range(10000):
 
 		random.shuffle(train_set)
@@ -121,22 +119,22 @@ with tf.Session() as sess:
 
 			if model.global_step.eval() % 1000 == 0:
 				Train_loss = loss_sum / iter_num
-				Test_loss, P, N, MAE, MRSE = _eval(sess, model)
+				Test_loss, P, N, MAE, RMSE = _eval(sess, model)
 				Train_loss = loss_sum / iter_num
-				print('Epoch %d Step %d Train_loss: %.4f Test_loss: %.4f P@3: %.4f P@5: %.4f P@10: %.4f NDCG@3: %.4f NDCG@5: %.4f NDCG@10: %.4f MAE: %.4f MRSE: %.4f' %
-				(model.global_epoch_step.eval(), model.global_step.eval(), Train_loss, Test_loss, P[2], P[4], P[9], N[2], N[4], N[9], MAE, MRSE))
+				print('Epoch %d Step %d Train_loss: %.4f Test_loss: %.4f P@3: %.4f P@5: %.4f P@10: %.4f NDCG@3: %.4f NDCG@5: %.4f NDCG@10: %.4f MAE: %.4f RMSE: %.4f Best_MAE: %.4f' %
+				(model.global_epoch_step.eval(), model.global_step.eval(), Train_loss, Test_loss, P[2], P[4], P[9], N[2], N[4], N[9], MAE, RMSE, best_mae))
 				iter_num = 0
 				loss_sum = 0.0
-				if MAE > best_mae:
-					model.save(sess, '/home/myronwu/save_model/DUAL_GAT.ckpt') 
+
+				if MAE < best_mae:
+					#model.save(sess, workdir+'/model/DUAL_GAT.ckpt') 
 					best_mae = MAE
 				model.policy_update(sess, datainput, u_readinput, u_friendinput, uf_readinput, u_read_l, u_friend_l, uf_read_linput, \
 				i_readinput, i_friendinput, if_readinput, i_linkinput, i_read_l, i_friend_l, if_read_linput, lr/10, keep_prob, lambda1, lambda2)
 
 		sys.stdout.flush()
 		model.global_epoch_step_op.eval()
-		if model.global_epoch_step.eval() % 50 == 0:
-			lr = lr*0.1
+	
 
 	sys.stdout.flush()
 	

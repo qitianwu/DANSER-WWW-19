@@ -4,7 +4,7 @@ def precision_k(score_label, k):
     p, i = 0, 0
     for s in score_label:
         if i < k:
-            if s[1]>3:
+            if s[1] > 3:
                 p += 1
             i += 1
     return p/k
@@ -47,7 +47,7 @@ def mae(score_label):
         n += 1
     return error / n
 
-def mrse(score_label):
+def rmse(score_label):
     n = 0
     error = 0
     for s in score_label:

@@ -34,7 +34,7 @@ If you use this code as part of any published research, please cite the followin
 
 For more details, you can refer to our paper.
 
-The Epinions data is provided by
+The Epinions data is provided by the work
 
-"eTrust: Understanding trust evolution in an online world"
+"eTrust: Understanding trust evolution in an online world" in KDD'2012.
 

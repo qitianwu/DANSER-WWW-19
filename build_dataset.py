@@ -128,7 +128,7 @@ for i in range(item_count+1):
 			if_read_f.append(i_read_list[f])
 		if_read_list.append(if_read_f)
 	
-with open(workdir+'/list.pkl', 'wb') as f:
+with open(workdir+'/data.pkl', 'wb') as f:
 	pickle.dump(u_friend_list, f, pickle.HIGHEST_PROTOCOL)
 	pickle.dump(u_read_list, f, pickle.HIGHEST_PROTOCOL)
 	pickle.dump(uf_read_list, f, pickle.HIGHEST_PROTOCOL)

@@ -72,7 +72,7 @@ def get_metric(score_label):
 	GPrecision = np.array([eval.precision_k(score_label_all, k*len(score_label_all)/100) for k in range(1, 21)])
 	GAUC = eval.auc(score_label_all)
 	MAE = eval.mae(score_label_all)
-	RMSE = eval.mrse(score_label_all)
+	RMSE = eval.rmse(score_label_all)
 	return Precision / num, NDCG / num, AUC / num, GPrecision, GAUC, MAE, RMSE
 		
 def _eval(sess, model):
